@@ -1,3 +1,4 @@
+import argparse
 import os
 import glob
 import re
@@ -74,3 +75,17 @@ def cer(raw_text, pred_text, remove_whitespace=False):
     cer = jiwer.cer(raw_text, pred_text)
 
     return cer
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-w", "--wav_dir", type=str, help="wav path", default="./output_temp/fastspeech2/wav/test.wav")
+    parser.add_argument("-l", "--lang", type=str, help="language", default="en")
+    parser.add_argument("-t", "--type", type=str, help="type (Google or Whisper)", default="Google")
+    args = parser.parse_args()
+
+    if(args.type == "Google"):
+        print(google(args.wav_dir, args.lang))
+    elif(args.type == "Whisper"):
+        print(whisper(args.wav_dir, args.lang))
+    else:
+        raise NotImplementedError

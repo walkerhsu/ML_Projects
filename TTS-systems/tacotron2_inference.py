@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 import torch
@@ -58,15 +59,48 @@ def mel2wav(vocoder: BaseVocoder, mel_path, wav_path):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d", "--data_config", type=str, help="path to data config directory",
+        default='data_config/LJSpeech-1.1',
+    )
+    parser.add_argument(
+        "-s", "--speaker", type=str, help="speaker", default="LJSpeech",
+    )
+    parser.add_argument(
+        "-p", "--png_path", type=str, help="output_img_path",
+        default="./output_temp/tacotron2/img/test.png",
+    )
+    parser.add_argument(
+        "-m", "--mel_path", type=str, help="output_mel_path",
+        default="./output_temp/tacotron2/npy/test.npy",
+    )
+    parser.add_argument(
+        "-w", "--wav_path", type=str, help="output_wav_path",
+        default="./output_temp/tacotron2/wav/test.npy",
+    )
+    parser.add_argument(
+        "-pre", "--pretrain_path", type=str, help="pretrained model path",
+        default=None,
+    )
+    parser.add_argument(
+        "-i", "--input", type=str, help="input sentence",
+        default="Deep learning is fun.",
+    )
+    parser.add_argument(
+         "-t", "--input_type", type=str, help="input type(char/phoneme)", default="char",
+    )
+    args = parser.parse_args()
     # ==================parameters==================
-    ckpt_path = ""
-    data_config = "data_config/LibriTTS"
-    input = "Deep learning is fun."
-    spk = "103"  # "LJSpeech", "103"...
+    ckpt_path = args.pretrain_path
+    data_config = args.data_config
+    input = args.input
+    spk = args.speaker  # "LJSpeech", "103"...
+    input_type = args.input_type
     
-    output_img_path = "_temp/test.png"
-    output_mel_path = "_temp/test.npy"
-    output_wav_path = "_temp/test.wav"
+    output_img_path = args.png_path
+    output_mel_path = args.mel_path
+    output_wav_path = args.wav_path
     vocoder = "HifiGAN"
     # ==================parameters==================
     
@@ -86,16 +120,18 @@ if __name__ == "__main__":
     system.eval()
 
     # parser input to model's input format
-    text = np.array(text_to_sequence(input, data_config["text_cleaners"], data_config["lang_id"]))
+    if(input_type == "char"):
+        text = np.array(text_to_sequence(input, data_config["text_cleaners"], data_config["lang_id"]))
 
     # If you want to use apply g2p and use phoneme as input, use functions from fastspeech2_inference.py
-    # from fastspeech2_inference import preprocess_english, preprocess_mandarin
-    # if data_config["lang_id"] == "en":
-    #     text = preprocess_english(input)
-    # elif data_config["lang_id"] == "zh":
-    #     text = preprocess_mandarin(input)
-    # else:
-    #     raise NotImplementedError
+    else:
+        from fastspeech2_inference import preprocess_english, preprocess_mandarin
+        if data_config["lang_id"] == "en":
+            text = preprocess_english(input)
+        elif data_config["lang_id"] == "zh":
+            text = preprocess_mandarin(input)
+        else:
+            raise NotImplementedError
 
     with open(Define.DATAPARSERS[data_config["name"]].speakers_path, 'r') as f:
         speakers = json.load(f)

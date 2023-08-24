@@ -57,7 +57,8 @@ class System(pl.LightningModule):
         checkpoint = ModelCheckpoint(
             dirpath=self.ckpt_dir,
             monitor="Val/Total Loss", mode="min",
-            every_n_train_steps=save_step, save_top_k=-1
+            every_n_train_steps=save_step, save_top_k=-1,
+            # filename="batch_size=128-{epoch}-{step}",
         )
 
         # Progress bars (step/epoch)

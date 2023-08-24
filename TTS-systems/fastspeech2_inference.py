@@ -1,3 +1,4 @@
+import argparse
 import os
 import numpy as np
 import torch
@@ -120,18 +121,43 @@ def mel2wav(vocoder: BaseVocoder, mel_path, wav_path):
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-d", "--data_config", type=str, help="path to data config directory",
+        default='data_config/LJSpeech-1.1',
+    )
+    parser.add_argument(
+        "-s", "--speaker", type=str, help="speaker", default="LJSpeech",)
+    parser.add_argument(
+        "-m", "--mel_path", type=str, help="output_mel_path",
+        default="./output_temp/fastspeech2/npy/test.npy",
+    )
+    parser.add_argument(
+        "-w", "--wav_path", type=str, help="output_wav_path",
+        default="./output_temp/fastspeech2/wav/test.npy",
+    )
+    parser.add_argument(
+        "-pre", "--pretrain_path", type=str, help="pretrained model path",
+        default=None,
+    )
+    parser.add_argument(
+        "-i", "--input", type=str, help="input sentence",
+        default="Deep learning is fun.",
+    )
     # ==================parameters==================
-    ckpt_path = ""
-    data_config = "data_config/LJSpeech-1.1"
-    input = "Deep learning is fun."
-    spk = "LJSpeech"  # "LJSpeech", "103", "SSB0005", "jsut", "kss"...
+    args = parser.parse_args()
+
+    ckpt_path = args.pretrain_path
+    data_config = args.data_config
+    input = args.input
+    spk = args.speaker # "LJSpeech", "103", "SSB0005", "jsut", "kss"...
     control = {  # Control FastSpeech2
         "p_control": 1.0,
-        "e_control": 1.0,
+        "e_control": 2.0,
         "d_control": 1.0,
     }
-    output_mel_path = "_temp/test.npy"
-    output_wav_path = "_temp/test.wav"
+    output_mel_path = args.mel_path
+    output_wav_path = args.wav_path
     vocoder = "HifiGAN"
     # ==================parameters==================
     

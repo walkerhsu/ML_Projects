@@ -132,3 +132,6 @@ _*/
 preprocessed_data/
 output/
 MFA/
+output_temp/
+*.png
+raw_data/
