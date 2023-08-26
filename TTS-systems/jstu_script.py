@@ -18,7 +18,10 @@ inputSentence = "Labyrinthine alleyways wind their way through vibrant markets a
 if __name__ == "__main__":
     os.chdir("raw_data")
     os.system("wget http://www.google.com/url?q=http%3A%2F%2Fss-takashi.sakura.ne.jp%2Fcorpus%2Fjsut_ver1.1.zip&sa=D&sntz=1&usg=AOvVaw3n995HGpynxwFxoJcVGPPm")
-    os.system("unzip")
+    os.system("unzip jsut_ver1.1.zip")
+    os.chdir("../")
+    os.system("python -m scripts.jsut_hts2textgrid")
+    os.system("python preprocess.py raw_data/jsut_ver1.1 preprocessed_data/JSUT --dataset JSUT --parse_raw --preprocess --force")
     # train
     
     # modify ckpt_steps, ckpt_idx, and ckpt_path for next iteration
@@ -29,12 +32,12 @@ if __name__ == "__main__":
     # # inference
     # os.system(f"python fastspeech2_inference.py -d data_config/LJSpeech-1.1 -m output_temp/fastspeech2/npy/steps={ckpt_steps}-batch_size={batch_size}.npy -w output_temp/fastspeech2/wav/steps={ckpt_steps}-batch_size={batch_size}.wav -pre {ckpt_path} -i '{inputSentence}' ")
 
-    start_time = time.time()
-    os.system(f"python fastspeech2_inference.py -m ./output_temp/fastspeech2/npy/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.npy -w ./output_temp/fastspeech2/wav/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.wav -pre ./output/LJSpeech-1.1_fastspeech_sample_code/ckpt/batch_size={batch_size}-epoch={4*ckpt_idx-1}-step={ckpt_steps}.ckpt -i '{inputSentence}' ")
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    os.system(f"echo 'Elapsed time: {elapsed_time}' ")
-    elapsed_time_avg += elapsed_time
+    # start_time = time.time()
+    # os.system(f"python fastspeech2_inference.py -m ./output_temp/fastspeech2/npy/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.npy -w ./output_temp/fastspeech2/wav/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.wav -pre ./output/LJSpeech-1.1_fastspeech_sample_code/ckpt/batch_size={batch_size}-epoch={4*ckpt_idx-1}-step={ckpt_steps}.ckpt -i '{inputSentence}' ")
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # os.system(f"echo 'Elapsed time: {elapsed_time}' ")
+    # elapsed_time_avg += elapsed_time
     # ckpt_idx += 1
     # ckpt_steps += 10000
 
