@@ -22,6 +22,9 @@ if __name__ == "__main__":
     os.chdir("../")
     os.system("python -m scripts.jsut_hts2textgrid")
     os.system("python preprocess.py raw_data/jsut_ver1.1 preprocessed_data/JSUT --dataset JSUT --parse_raw --preprocess --force")
+    os.system("python clean.py [preprocessed_dir] [clean_results_path]")
+    os.system("python preprocess.py [raw_dir] [preprocessed_dir] --dataset [DATASET_TAG] --create_dataset [clean_results_path]")
+    
     # train
     
     # modify ckpt_steps, ckpt_idx, and ckpt_path for next iteration
