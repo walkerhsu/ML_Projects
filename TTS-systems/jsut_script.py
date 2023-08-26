@@ -16,14 +16,15 @@ inputSentence = "Labyrinthine alleyways wind their way through vibrant markets a
 
 
 if __name__ == "__main__":
-    os.chdir("raw_data")
-    os.system("wget http://www.google.com/url?q=http%3A%2F%2Fss-takashi.sakura.ne.jp%2Fcorpus%2Fjsut_ver1.1.zip&sa=D&sntz=1&usg=AOvVaw3n995HGpynxwFxoJcVGPPm")
-    os.system("unzip jsut_ver1.1.zip")
-    os.chdir("../")
+    # os.chdir("raw_data")
+    # os.system("wget -O jsut_ver1.1.zip http://ss-takashi.sakura.ne.jp/corpus/jsut_ver1.1.zip")
+    # os.system("unzip jsut_ver1.1.zip")
+    # os.chdir("../")
+    
     os.system("python -m scripts.jsut_hts2textgrid")
     os.system("python preprocess.py raw_data/jsut_ver1.1 preprocessed_data/JSUT --dataset JSUT --parse_raw --preprocess --force")
-    os.system("python clean.py [preprocessed_dir] [clean_results_path]")
-    os.system("python preprocess.py [raw_dir] [preprocessed_dir] --dataset [DATASET_TAG] --create_dataset [clean_results_path]")
+    os.system("python clean.py preprocessed_data/JSUT data_config/JSUT/clean.json")
+    os.system("python preprocess.py raw_data/jsut_ver1.1 preprocessed_data/JSUT --dataset JSUT --create_dataset data_config/JSUT/clean.json --force")
     
     # train
     
