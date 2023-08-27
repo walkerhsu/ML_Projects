@@ -32,14 +32,19 @@ if __name__ == "__main__":
     # # inference
     # os.system(f"python fastspeech2_inference.py -d data_config/LJSpeech-1.1 -m output_temp/fastspeech2/npy/steps={ckpt_steps}-batch_size={batch_size}.npy -w output_temp/fastspeech2/wav/steps={ckpt_steps}-batch_size={batch_size}.wav -pre {ckpt_path} -i '{inputSentence}' ")
 
-    start_time = time.time()
-    os.system(f"python fastspeech2_inference.py -m ./output_temp/fastspeech2/npy/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.npy -w ./output_temp/fastspeech2/wav/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.wav -pre ./output/LJSpeech-1.1_fastspeech_sample_code/ckpt/batch_size={batch_size}-epoch={4*ckpt_idx-1}-step={ckpt_steps}.ckpt -i '{inputSentence}' ")
-    end_time = time.time()
-    elapsed_time = end_time - start_time
-    os.system(f"echo 'Elapsed time: {elapsed_time}' ")
-    elapsed_time_avg += elapsed_time
+    # start_time = time.time()
+    # os.system(f"python fastspeech2_inference.py -m ./output_temp/fastspeech2/npy/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.npy -w ./output_temp/fastspeech2/wav/steps={ckpt_steps}-{seconds}secs-ped={p_control},{e_control},{d_control}.wav -pre ./output/LJSpeech-1.1_fastspeech_sample_code/ckpt/batch_size={batch_size}-epoch={4*ckpt_idx-1}-step={ckpt_steps}.ckpt -i '{inputSentence}' ")
+    # end_time = time.time()
+    # elapsed_time = end_time - start_time
+    # os.system(f"echo 'Elapsed time: {elapsed_time}' ")
+    # elapsed_time_avg += elapsed_time
     # ckpt_idx += 1
     # ckpt_steps += 10000
-
+    # os.system("pip install tensorflow")
+    os.chdir("output")
+    for dir in os.listdir():
+        exp_name = dir    
+        os.system(f"echo {exp_name}")
+        os.system(f"tensorboard --logdir output/{exp_name}/log/tb/version0 --bind_all")
     # os.system(f"echo ' Averaged processing time for {seconds} seconds sentence using Fastspeech2 (batch_size={batch_size}): {elapsed_time_avg / 5}' ")
     os.system("echo 'Done!' ")

@@ -14,7 +14,6 @@ from .m_ailabs import MAILABSPreprocessor, MAILABSRawParser
 from .lad import LADPreprocessor, LADRawParser
 from .csmsc import CSMSCPreprocessor, CSMSCRawParser
 
-
 PREPROCESSORS = {
     "LJSpeech": LJSpeechPreprocessor,
     "LibriTTS": LibriTTSPreprocessor,

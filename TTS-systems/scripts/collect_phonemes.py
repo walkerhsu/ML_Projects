@@ -30,8 +30,8 @@ def generate_phoneme_set(phns: Set[str], output_path: str) -> None:
             f.write(f"{p}\n")
 
 
-if __name__ == "__main__":
-    phns = collect_phonemes([
-        "preprocessed_data/JSUT"
-    ])
-    generate_phoneme_set(phns, "_phoneset/JSUT.txt")
+# if __name__ == "__main__":
+phns = collect_phonemes([
+    "preprocessed_data/JSUT"
+])
+generate_phoneme_set(phns, "_phoneset/JSUT.txt")

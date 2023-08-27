@@ -29,6 +29,15 @@ def read_lexicon(lex_path):
                 lexicon[word.lower()] = phones
     return lexicon
 
+def preprocess_japanese(text):
+    phones = "{f o o n i b a r u n o s a i b a N n o s a i pau t o r i d e o h a n a r e r a r e n a i d a r i o g a j i sh i N n o k a w a r i n i pau m u z a i n o sh o o g e N o s u r u sh o o n i N t o sh I t e k a r e o ts U k a w a s u}"
+    sequence = np.array(
+        text_to_sequence(
+            phones, [], lang_id="jp"
+        )
+    )
+
+    return np.array(sequence)
 
 def preprocess_english(text):
     text = text.rstrip(punctuation)
@@ -180,6 +189,8 @@ if __name__ == "__main__":
         text = preprocess_english(input)
     elif data_config["lang_id"] == "zh":
         text = preprocess_mandarin(input)
+    elif data_config["lang_id"] == "jp":
+        text = preprocess_japanese(input)
     else:
         raise NotImplementedError
     with open(Define.DATAPARSERS[data_config["name"]].speakers_path, 'r') as f:
