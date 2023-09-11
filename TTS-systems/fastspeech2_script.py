@@ -45,6 +45,6 @@ if __name__ == "__main__":
     for dir in os.listdir():
         exp_name = dir    
         os.system(f"echo {exp_name}")
-        os.system(f"tensorboard --logdir output/{exp_name}/log/tb/version0 --bind_all")
+        os.system(f"tensorboard --logdir=./output/{exp_name}/log/tb/ --bind_all --load_fast=false")
     # os.system(f"echo ' Averaged processing time for {seconds} seconds sentence using Fastspeech2 (batch_size={batch_size}): {elapsed_time_avg / 5}' ")
     os.system("echo 'Done!' ")

@@ -76,6 +76,21 @@ def cer(raw_text, pred_text, remove_whitespace=False):
 
     return cer
 
+def calculate_wer(reference, hypothesis):
+    print(reference)
+    print(hypothesis)
+    ref_words = reference.split()
+    hyp_words = hypothesis.split()
+    # Counting the number of substitutions, deletions, and insertions
+    substitutions = sum(1 for ref, hyp in zip(ref_words, hyp_words) if ref != hyp)
+    deletions = len(ref_words) - len(hyp_words)
+    insertions = len(hyp_words) - len(ref_words)
+    # Total number of words in the reference text
+    total_words = len(ref_words)
+    # Calculating the Word Error Rate (WER)
+    wer = (substitutions + deletions + insertions) / total_words
+    return wer
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-w", "--wav_dir", type=str, help="wav path", default="./output_temp/fastspeech2/wav/test.wav")
@@ -83,9 +98,17 @@ if __name__ == "__main__":
     parser.add_argument("-t", "--type", type=str, help="type (Google or Whisper)", default="Google")
     args = parser.parse_args()
 
+    translate = ""
+    # inputSentence = "Amidst the sprawling tapestry of an ancient city, where history and modernity intertwine in a captivating embrace, labyrinthine alleyways wind their way through vibrant markets alive with the colors and aromas of exotic spices, while the echoes of distant footsteps resonate against the ornate facades of centuries-old architecture that stand as testament to the passage of time and the stories of countless generations."
+    # inputSentence = "Underneath the starlit sky whispers of forgotten tales dance on the gentle breeze weaving dreams of distant worlds"
+    inputSentence = "フォーニバルの裁判の際砦を離れられないダリオが自身の代わりに無罪の証言をする証人として彼を遣わす"
     if(args.type == "Google"):
-        print(google(args.wav_dir, args.lang))
+        translate = google(args.wav_dir, args.lang)
     elif(args.type == "Whisper"):
-        print(whisper(args.wav_dir, args.lang))
+        translate = whisper(args.wav_dir, args.lang)
     else:
         raise NotImplementedError
+    
+    # print(translate)
+    wer = calculate_wer(inputSentence.lower() , translate.lower())
+    print(f"wer : {wer}")
