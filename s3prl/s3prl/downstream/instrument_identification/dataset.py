@@ -1,5 +1,5 @@
 import random
-import pandas as pd
+import json
 
 import torch
 import torch.nn as nn
@@ -8,6 +8,8 @@ from torch.utils.data.dataset import Dataset
 import os
 from pathlib import Path
 
+from torchaudio.transforms import Resample
+
 import torchaudio
 
 SAMPLE_RATE = 16000
@@ -15,29 +17,44 @@ EXAMPLE_WAV_MIN_SEC = 5
 EXAMPLE_WAV_MAX_SEC = 20
 EXAMPLE_DATASET_SIZE = 200
 
-INSTRUMENTS = [
-    "cel", "cla", "flu", "gac", "gel", "org", "pia", "sax", "tru", "vio", "voi"
-]
-
 
 class InstrumentDataset(Dataset):
-    def __init__(self, df, split, batch_size, IRMAS_root, **kwargs):
+    def __init__(self, data_path, split, batch_size, pre_load=True, **kwargs):
         super(InstrumentDataset, self).__init__()
-        self.df = df
+        with open(data_path, "r") as f:
+            self.data = json.load(f)
+        
         self.split = split
         self.batch_size = batch_size
-        self.IRMAS_root = IRMAS_root
-        self.class_num = 48
-        self.trainDataset = self.getTrainingAudioInstrument()
+        self.instruments = self.data["instruments"]
+        self.idx2instruments = {value: key for key, value in self.instruments.items()}
+        self.instruments_num = len(self.instruments)
+        self.meta_data = self.data["meta_data"]
+        _, origin_sr = torchaudio.load(self.meta_data[0]["path"])
+        self.resampler = Resample(origin_sr, SAMPLE_RATE)
+        if pre_load:
+            self.wavs = self._load_all()
 
-        self.ins2idx = {instrument: idx for idx, instrument in enumerate(INSTRUMENTS)}        
+    def _load_wav(self, path):
+        wav, _ = torchaudio.load(path)
+        wav = self.resampler(wav).squeeze(0)
+        return wav
+
+    def _load_all(self):
+        wavforms = []
+        for info in self.meta_data:
+            wav = self._load_wav(info['path'])
+            wavforms.append(wav)
+        return wavforms
 
     def __getitem__(self, idx):
-        samples = random.randint(EXAMPLE_WAV_MIN_SEC * SAMPLE_RATE, EXAMPLE_WAV_MAX_SEC * SAMPLE_RATE)
-        wav_path = self.df.loc[idx]['id']
-        wav, sr = torchaudio.load(wav_path)
-        label = 1
-        return wav, label
+        label = self.meta_data[idx]['label']
+        label = self.instruments[label]
+        if self.pre_load:
+            wav = self.wavs[idx]
+        else:
+            wav = self._load_wav(self.meta_data[idx]['path'])
+        return wav.numpy(), label, Path(self.meta_data[idx]['path']).stem
 
     def __len__(self):
         return EXAMPLE_DATASET_SIZE
@@ -48,26 +65,9 @@ class InstrumentDataset(Dataset):
             wavs.append(wav)
             labels.append(label)
         return wavs, labels
-    
+
     def getInstrument(self, idx):
         return INSTRUMENTS[idx]
-    
+
     def getInstrumentIdx(self, instrument):
         return self.ins2idx[instrument]
-    
-    def getTrainingAudioInstrument(self):
-        trainingAudioInstrument = {}
-        for dir in os.listdir(self.IRMAS_root):
-            dir = os.path.join(self.IRMAS_root, dir)
-            if os.path.isdir(dir):
-                for musicFile in Path(dir).glob('*.wav'):
-                    audioIns = musicFile.split('/')[-1].split('__')[-2]
-                    audioIns[-1] = audioIns[-1][:-4]
-                    for ins in audioIns:
-                        if ins not in INSTRUMENTS:
-                            audioIns.remove(ins)
-                    trainingAudioInstrument[musicFile] = audioIns
-        
-        df = pd.DataFrame.from_dict(trainingAudioInstrument, orient='index')
-        return trainingAudioInstrument
-

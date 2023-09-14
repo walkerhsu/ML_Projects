@@ -54,13 +54,15 @@ class DownstreamExpert(nn.Module):
         self.datarc = downstream_expert['datarc']
         self.modelrc = downstream_expert['modelrc']
 
-        self.train_df = pd.read_csv(self.datarc['IRAMS_traincsv'])
-        self.dev_df = pd.read_csv(self.datarc['IRAMS_devcsv'])
-        self.test_df = pd.read_csv(self.datarc['IRAMS_testcsv'])
+        
+        meta_data_root = self.datarc["meta_data_root"]
+        self.train_path = os.path.join(meta_data_root, self.datarc["training_data"])
+        self.dev_path = os.path.join(meta_data_root, self.datarc["dev_data"])
+        self.test_path = os.path.join(meta_data_root, self.datarc["testing_data"])
 
-        self.train_dataset = InstrumentDataset(self.train_df, "train", self.datarc["train_batch_size"], **self.datarc)
-        self.dev_dataset = InstrumentDataset(self.dev_df, "dev", self.datarc["eval_batch_size"], **self.datarc)
-        self.test_dataset = InstrumentDataset(self.test_df, "test", self.datarc["eval_batch_size"], **self.datarc)
+        self.train_dataset = InstrumentDataset(self.train_path, "train", self.datarc["train_batch_size"], **self.datarc)
+        self.dev_dataset = InstrumentDataset(self.dev_path, "dev", self.datarc["eval_batch_size"], **self.datarc)
+        self.test_dataset = InstrumentDataset(self.test_path, "test", self.datarc["eval_batch_size"], **self.datarc)
 
         self.connector = nn.Linear(upstream_dim, self.modelrc['input_dim'])
         self.model = Model(
