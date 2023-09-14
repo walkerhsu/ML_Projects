@@ -28,11 +28,12 @@ def get_preprocess_args():
     
     parser = argparse.ArgumentParser(description='preprocess arguments for any dataset.')
 
-    parser.add_argument('-i', '--input_data', default='../LibriSpeech/', type=str, help='Path to your LibriSpeech directory', required=False)
+    parser.add_argument('-i', '--input_data', default='./data/LibriSpeech/', type=str, help='Path to your LibriSpeech directory', required=False)
     parser.add_argument('-o', '--output_path', default='./data/', type=str, help='Path to store output', required=False)
     parser.add_argument('-a', '--audio_extension', default='.flac', type=str, help='audio file type (.wav / .flac / .mp3 / etc)', required=False)
     parser.add_argument('-n', '--name', default='len_for_bucket', type=str, help='Name of the output directory', required=False)
     parser.add_argument('--n_jobs', default=-1, type=int, help='Number of jobs used for feature extraction', required=False)
+    parser.add_argument('-f', '--force_generate', action='store_true', help='Force to generate all meta data without input.', required=False)
 
     args = parser.parse_args()
     return args
@@ -102,8 +103,11 @@ def main():
     # Select data sets
     for idx, s in enumerate(SETS):
         print('\t', idx, ':', s)
-    tr_set = input('Please enter the index of splits you wish to use preprocess. (seperate with space): ')
-    tr_set = [SETS[int(t)] for t in tr_set.split(' ')]
+    
+    tr_set = SETS
+    if not args.force_generate:
+        tr_set = input('Please enter the index of splits you wish to use preprocess. (seperate with space): ')
+        tr_set = [SETS[int(t)] for t in tr_set.split(' ')]
 
     # Acoustic Feature Extraction & Make Data Table
     generate_length(args, tr_set, args.audio_extension)
