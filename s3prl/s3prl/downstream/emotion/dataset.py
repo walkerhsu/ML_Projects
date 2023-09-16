@@ -34,6 +34,7 @@ class IEMOCAPDataset(Dataset):
 
     def _load_wav(self, path):
         wav, _ = torchaudio.load(path_join(self.data_dir, path))
+        
         wav = self.resampler(wav).squeeze(0)
         return wav
 

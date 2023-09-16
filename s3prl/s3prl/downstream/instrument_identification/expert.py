@@ -1,18 +1,19 @@
 import os
 import math
+from pathlib import Path
 import pandas as pd
 import torch
 import random
 
 import torch
 import torch.nn as nn
-from torch.utils.data import DataLoader, DistributedSampler
+from torch.utils.data import DataLoader, random_split, DistributedSampler
 from torch.distributed import is_initialized
 from torch.nn.utils.rnn import pad_sequence
 
-from .model import Model
-from .dataset import InstrumentDataset
-from.dataset.prepare_data import saveData
+from ..model import *
+from .model import *
+from .dataset import InstrumentDataset, collate_fn
 
 
 class DownstreamExpert(nn.Module):
@@ -21,7 +22,9 @@ class DownstreamExpert(nn.Module):
     eg. downstream forward, metric computation, contents to log
     """
 
-    def __init__(self, upstream_dim, upstream_rate, downstream_expert, expdir, **kwargs):
+    def __init__(
+        self, upstream_dim, upstream_rate, downstream_expert, expdir, **kwargs
+    ):
         """
         Args:
             upstream_dim: int
@@ -31,7 +34,7 @@ class DownstreamExpert(nn.Module):
             upstream_rate: int
                 160: for upstream with 10 ms per frame
                 320: for upstream with 20 ms per frame
-            
+
             downstream_expert: dict
                 The 'downstream_expert' field specified in your downstream config file
                 eg. downstream/example/config.yaml
@@ -43,7 +46,7 @@ class DownstreamExpert(nn.Module):
             **kwargs: dict
                 All the arguments specified by the argparser in run_downstream.py
                 and all the other fields in config.yaml, in case you need it.
-                
+
                 Note1. Feel free to add new argument for __init__ as long as it is
                 a command-line argument or a config field. You can check the constructor
                 code in downstream/runner.py
@@ -51,26 +54,53 @@ class DownstreamExpert(nn.Module):
 
         super(DownstreamExpert, self).__init__()
         self.upstream_dim = upstream_dim
-        self.datarc = downstream_expert['datarc']
-        self.modelrc = downstream_expert['modelrc']
+        self.datarc = downstream_expert["datarc"]
+        self.modelrc = downstream_expert["modelrc"]
+        self.meta_data_root = self.datarc["meta_data_root"]
 
-        
-        meta_data_root = self.datarc["meta_data_root"]
-        self.train_path = os.path.join(meta_data_root, self.datarc["training_data"])
-        self.dev_path = os.path.join(meta_data_root, self.datarc["dev_data"])
-        self.test_path = os.path.join(meta_data_root, self.datarc["testing_data"])
+        self.fold = self.datarc["fold"]
+        if self.fold is None:
+            self.fold = "fold1"
 
-        self.train_dataset = InstrumentDataset(self.train_path, "train", self.datarc["train_batch_size"], **self.datarc)
-        self.dev_dataset = InstrumentDataset(self.dev_path, "dev", self.datarc["eval_batch_size"], **self.datarc)
-        self.test_dataset = InstrumentDataset(self.test_path, "test", self.datarc["eval_batch_size"], **self.datarc)
-
-        self.connector = nn.Linear(upstream_dim, self.modelrc['input_dim'])
-        self.model = Model(
-            output_class_num=self.train_dataset.class_num,
-            **self.modelrc
+        print(
+            f'[Expert] - using the testing fold: "{self.fold}". Ps. Use -o config.downstream_expert.datarc.test_fold=fold2 to change test_fold in config.'
         )
+
+        train_path = os.path.join(
+            self.meta_data_root, self.fold.replace("fold", "Session"), "Training.json"
+        )
+        print(f"[Expert] - Training path: {train_path}")
+
+        test_path = os.path.join(
+            self.meta_data_root, self.fold.replace("fold", "Session"), "Testing.json"
+        )
+        print(f"[Expert] - Testing path: {test_path}")
+
+        dataset = InstrumentDataset(
+            train_path, "train", self.datarc["train_batch_size"], **self.datarc
+        )
+        trainlen = int((1 - self.datarc["valid_ratio"]) * len(dataset))
+        lengths = [trainlen, len(dataset) - trainlen]
+
+        torch.manual_seed(0)
+        self.train_dataset, self.dev_dataset = random_split(dataset, lengths)
+
+        self.test_dataset = InstrumentDataset(
+            test_path, "test", self.datarc["eval_batch_size"], **self.datarc
+        )
+
+        self.connector = nn.Linear(upstream_dim, self.modelrc["input_dim"])
+        model_cls = eval(self.modelrc["select"])
+        model_conf = self.modelrc.get(self.modelrc["select"], {})
+        self.model = model_cls(
+            input_dim=self.modelrc["input_dim"],
+            output_dim=dataset.instruments_num,
+            **model_conf,
+        )
+
         self.objective = nn.CrossEntropyLoss()
-        self.register_buffer('best_score', torch.zeros(1))
+        self.register_buffer("best_score", torch.zeros(1))
+        self.expdir = expdir
 
     # Interface
     def get_dataloader(self, split, epoch: int = 0):
@@ -96,36 +126,37 @@ class DownstreamExpert(nn.Module):
                 3. directly loaded by torchaudio
         """
 
-        if split == 'train':
+        if split == "train":
             return self._get_train_dataloader(self.train_dataset, epoch)
-        elif split == 'dev':
+        elif split == "dev":
             return self._get_eval_dataloader(self.dev_dataset)
-        elif split == 'test':
+        elif split == "test":
             return self._get_eval_dataloader(self.test_dataset)
-
 
     def _get_train_dataloader(self, dataset, epoch: int):
         from s3prl.utility.data import get_ddp_sampler
+
         sampler = get_ddp_sampler(dataset, epoch)
         return DataLoader(
-            dataset, batch_size=self.datarc['train_batch_size'],
+            dataset,
+            batch_size=self.datarc["train_batch_size"],
             shuffle=(sampler is None),
             sampler=sampler,
-            num_workers=self.datarc['num_workers'],
-            collate_fn=dataset.collate_fn
+            num_workers=self.datarc["num_workers"],
+            collate_fn=collate_fn,
         )
-
 
     def _get_eval_dataloader(self, dataset):
         return DataLoader(
-            dataset, batch_size=self.datarc['eval_batch_size'],
-            shuffle=False, num_workers=self.datarc['num_workers'],
-            collate_fn=dataset.collate_fn
+            dataset,
+            batch_size=self.datarc["eval_batch_size"],
+            shuffle=False,
+            num_workers=self.datarc["num_workers"],
+            collate_fn=collate_fn,
         )
 
-
     # Interface
-    def forward(self, split, features, your_other_contents1, records, **kwargs):
+    def forward(self, split, features, labels, filenames, records, **kwargs):
         """
         Args:
             split: string
@@ -162,24 +193,55 @@ class DownstreamExpert(nn.Module):
                 the loss to be optimized, should not be detached
                 a single scalar in torch.FloatTensor
         """
+
+        device = features[0].device
+        features_len = torch.IntTensor([len(feat) for feat in features]).to(
+            device=device
+        )
+
         features = pad_sequence(features, batch_first=True)
         features = self.connector(features)
-        predicted = self.model(features)
+        predicted, _ = self.model(features, features_len)
+        label_truth = []
+        for label in labels:
+            label_truth.append([0.0 for _ in range(self.test_dataset.instruments_num)])
+            for l in label:
+                label_truth[-1][l] = 1.0
 
-        utterance_labels = your_other_contents1
-        labels = torch.LongTensor(utterance_labels).to(features.device)
-        loss = self.objective(predicted, labels)
+        label_truth = torch.Tensor(label_truth).to(features.device)
+        loss = self.objective(predicted, label_truth)
+        predicted_classid = []
+        accs = []
+        for idx, predicted_one in enumerate(predicted.cpu().tolist()):
+            predicted_classid.append([])
+            accs.append(0)
+            # if more than one that is larger than 0.5, select them
+            predicted_classid[-1] = [i for i, x in enumerate(predicted_one) if x >= 0.5]
+            # if none : select the largest one
+            if len(predicted_classid[-1]) == 0:
+                predicted_classid[-1] = [predicted_one.index(max(predicted_one))]
 
-        predicted_classid = predicted.max(dim=-1).indices
+            for label in labels[idx]:
+                if label in predicted_classid[-1]:
+                    accs[-1] += 1.0
+            accs[-1] /= len(labels[idx])
 
-        records['loss'].append(loss.item())
-        records['acc'] += (predicted_classid == labels).view(-1).cpu().float().tolist()
+        records["acc"] += accs
+        records["loss"].append(loss.item())
+
+        records["filename"] += filenames
+        # records["predict"] += [
+        #     self.test_dataset.idx2instruments[idx]
+        #     for idx in predicted_classid
+        # ]
+        # records["truth"] += [
+        #     self.test_dataset.idx2instruments[idx] for idx in labels.cpu()
+        # ]
 
         return loss
 
-
     # interface
-    def log_records(self, split, records, logger, global_step, batch_ids, total_batch_num, **kwargs):
+    def log_records(self, mode, records, logger, global_step, **kwargs):
         """
         Args:
             split: string
@@ -207,7 +269,7 @@ class DownstreamExpert(nn.Module):
 
             total_batch_num:
                 The total amount of batches in the dataloader
-        
+
         Return:
             a list of string
                 Each string is a filename we wish to use to save the current model
@@ -215,14 +277,30 @@ class DownstreamExpert(nn.Module):
                 You can return nothing or an empty list when no need to save the checkpoint
         """
         save_names = []
-        for key, values in records.items():
+        for key in ["acc", "loss"]:
+            values = records[key]
             average = torch.FloatTensor(values).mean().item()
             logger.add_scalar(
-                f'example/{split}-{key}',
-                average,
-                global_step=global_step
+                f"instrument/{mode}-{key}", average, global_step=global_step
             )
-            if split == 'dev' and key == 'acc' and average > self.best_score:
-                self.best_score = torch.ones(1) * average
-                save_names.append(f'{split}-best.ckpt')
+            with open(Path(self.expdir) / "log.log", "a") as f:
+                if key == "acc" or key == "loss":
+                    print(f"{mode} {key}: {average}")
+                    f.write(f"{mode} at step {global_step}: {average}\n")
+                    if key == "acc" and mode == "dev" and average > self.best_score:
+                        self.best_score = torch.ones(1) * average
+                        f.write(
+                            f"New best on {mode} at step {global_step}: {average}\n"
+                        )
+                        save_names.append(f"{mode}-best.ckpt")
+
+        # if mode in ["dev", "test"]:
+        #     with open(Path(self.expdir) / f"{mode}_{self.fold}_predict.txt", "w") as file:
+        #         line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["predict"])]
+        #         file.writelines(line)
+
+        #     with open(Path(self.expdir) / f"{mode}_{self.fold}_truth.txt", "w") as file:
+        #         line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["truth"])]
+        #         file.writelines(line)
+
         return save_names

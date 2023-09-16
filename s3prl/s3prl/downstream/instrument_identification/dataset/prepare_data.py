@@ -1,8 +1,10 @@
 import os
+import random
 import pandas as pd
 import argparse
 from pathlib import Path
 import json
+from sklearn.model_selection import KFold
 
 INSTRUMENTS = [
     "cel",
@@ -32,16 +34,27 @@ def get_arguments():
         default="data/IRMAS",
         help="IRMAS dataset root",
     )
+
+    parser.add_argument(
+        "-m",
+        "--metadata",
+        type=str,
+        default="downstream/instrument_identification/meta_data",
+        help="metadata root",
+    )
+
+    parser.add_argument("-f", "--folds", type=int, default=5, help="number of folds")
     args = parser.parse_args()
-    return args.root
+    return args.root, args.metadata, args.folds
 
 
 def saveData(root):
+    meta_data = []
     for dir in os.listdir(root):
-        if "IRMAS-TestingData" in dir or "IRMAS-EvaluationData" in dir:
-            saveTestingData(root, dir)
+        if f"IRMAS-TestingData" in dir:
+            meta_data += saveTestingData(root, dir)
         elif "IRMAS-TrainingData" in dir:
-            saveTrainingData(root, dir)
+            meta_data += saveTrainingData(root, dir)
         # elif "Training" in dir:
         #     saveTrainingData(root, dir)
         # elif "Testing" in dir:
@@ -49,12 +62,11 @@ def saveData(root):
         else:
             continue
 
+    return meta_data
+
 
 def saveTrainingData(root, dir):
-    trainingAudioInstrument = {
-        "instruments": ins2idx(),
-        "meta_data": [],
-    }
+    meta_data = []
     dir = os.path.join(root, dir)
     if os.path.isdir(dir):
         for musicFile in Path(dir).rglob("**/*.wav"):
@@ -73,19 +85,15 @@ def saveTrainingData(root, dir):
             # if len(audioIns) > most_ins:
             #     most_ins = len(audioIns)
             musicData["label"] = audioIns
-            trainingAudioInstrument["meta_data"].append(musicData)
-
-        print(trainingAudioInstrument)
-        with open(f"{dir}.json", "w") as f:
-            json.dump(trainingAudioInstrument, f)
+            meta_data.append(musicData)
+    return meta_data
+    # print(trainingAudioInstrument)
+    # with open(f"{dir}.json", "w") as f:
+    #     json.dump(trainingAudioInstrument, f)
 
 
 def saveTestingData(root, dir):
-    testingAudioInstrument = {
-        "instruments": ins2idx(),
-        "meta_data": [],
-    }
-    file_name = dir.split("-")[-1]
+    meta_data = []
     dir = os.path.join(root, dir)
     if os.path.isdir(dir):
         dataDir = os.path.join(dir, dir.split("-")[-1])
@@ -112,14 +120,34 @@ def saveTestingData(root, dir):
                 audioIns = [line.strip("\r\n\t ") for line in f]
                 audioIns = [ins for ins in audioIns if ins in INSTRUMENTS]
                 musicData["label"] = audioIns
-                testingAudioInstrument["meta_data"].append(musicData)
-        with open(f"{dir}.json", "w") as f:
-            json.dump(testingAudioInstrument, f)
+                meta_data.append(musicData)
+
+    return meta_data
 
 
 def main():
-    root = get_arguments()
-    saveData(root)
+    root, metadata_root, folds = get_arguments()
+    meta_data = saveData(root)
+    random.shuffle(meta_data)
+    kf = KFold(n_splits=folds)
+    for fold_idx, (train_index, test_index) in enumerate(kf.split(meta_data)):
+        trainingData = {
+            "instruments": ins2idx(),
+            "meta_data": [meta_data[idx] for idx in train_index],
+        }
+        testingData = {
+            "instruments": ins2idx(),
+            "meta_data": [meta_data[idx] for idx in test_index],
+        }
+        session = "Session{}".format(fold_idx + 1)
+        os.mkdir(f"{metadata_root}/{session}")
+        TrainingPath = os.path.join(metadata_root, session, "Training.json")
+        TestingPath = os.path.join(metadata_root, session, "Testing.json")
+        with open(TrainingPath, "w") as f:
+            json.dump(trainingData, f)
+        with open(TestingPath, "w") as f:
+            json.dump(testingData, f)
+    # saveData(root, metadata)
 
 
 if __name__ == "__main__":

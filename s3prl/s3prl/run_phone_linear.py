@@ -3,7 +3,7 @@ import os
 if __name__ == "__main__":
     # train
     os.system(
-        "python3 run_downstream.py -m train -n wav2vec2--phone_linear -u wav2vec2 -d phone_linear"
+        "python3 run_downstream.py -m train -n wav2vec2--phone_linear -u wav2vec2 -d phone_linear -cd"
     )
 
     # # evaluate
