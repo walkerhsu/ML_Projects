@@ -98,7 +98,7 @@ class DownstreamExpert(nn.Module):
             **model_conf,
         )
 
-        self.objective = nn.CrossEntropyLoss()
+        self.objective = nn.BCEWithLogitsLoss()
         self.register_buffer("best_score", torch.zeros(1))
         self.expdir = expdir
 
@@ -216,27 +216,24 @@ class DownstreamExpert(nn.Module):
             predicted_classid.append([])
             accs.append(0)
             # if more than one that is larger than 0.5, select them
-            predicted_classid[-1] = [i for i, x in enumerate(predicted_one) if x >= 0.5]
+            predicted_classid[-1] = [
+                i for i, x in enumerate(predicted_one) if x >= 0.75
+            ]
             # if none : select the largest one
             if len(predicted_classid[-1]) == 0:
                 predicted_classid[-1] = [predicted_one.index(max(predicted_one))]
 
+            records["predict"].append(predicted_classid[-1])
+            records["truth"].append(labels[idx])
             for label in labels[idx]:
                 if label in predicted_classid[-1]:
                     accs[-1] += 1.0
-            accs[-1] /= len(labels[idx])
+            accs[-1] /= len(labels[idx]) + len(predicted_classid[-1]) - accs[-1]
 
         records["acc"] += accs
         records["loss"].append(loss.item())
 
         records["filename"] += filenames
-        # records["predict"] += [
-        #     self.test_dataset.idx2instruments[idx]
-        #     for idx in predicted_classid
-        # ]
-        # records["truth"] += [
-        #     self.test_dataset.idx2instruments[idx] for idx in labels.cpu()
-        # ]
 
         return loss
 
@@ -294,13 +291,22 @@ class DownstreamExpert(nn.Module):
                         )
                         save_names.append(f"{mode}-best.ckpt")
 
-        # if mode in ["dev", "test"]:
-        #     with open(Path(self.expdir) / f"{mode}_{self.fold}_predict.txt", "w") as file:
-        #         line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["predict"])]
-        #         file.writelines(line)
+        if mode in ["dev", "test"]:
+            with open(
+                Path(self.expdir) / f"{mode}_{self.fold}_predict.txt", "w"
+            ) as file:
+                assert len(records["filename"]) == len(records["predict"])
+                line = [
+                    f"{f} {e}\n"
+                    for f, e in zip(records["filename"], records["predict"])
+                ]
+                file.writelines(line)
 
-        #     with open(Path(self.expdir) / f"{mode}_{self.fold}_truth.txt", "w") as file:
-        #         line = [f"{f} {e}\n" for f, e in zip(records["filename"], records["truth"])]
-        #         file.writelines(line)
+            with open(Path(self.expdir) / f"{mode}_{self.fold}_truth.txt", "w") as file:
+                assert len(records["filename"]) == len(records["truth"])
+                line = [
+                    f"{f} {e}\n" for f, e in zip(records["filename"], records["truth"])
+                ]
+                file.writelines(line)
 
         return save_names

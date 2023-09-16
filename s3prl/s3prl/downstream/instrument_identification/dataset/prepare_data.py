@@ -81,7 +81,7 @@ def saveTrainingData(root, dir):
             while audioIns[0][0] != "[":
                 audioIns[0] = audioIns[0][1:]
             audioIns[0] = audioIns[0][1:]
-            audioIns = [ins for ins in audioIns if ins in INSTRUMENTS]
+            audioIns = list(set([ins for ins in audioIns if ins in INSTRUMENTS]))
             # if len(audioIns) > most_ins:
             #     most_ins = len(audioIns)
             musicData["label"] = audioIns
@@ -118,7 +118,7 @@ def saveTestingData(root, dir):
             }
             with open(sortedTxtFile, "r") as f:
                 audioIns = [line.strip("\r\n\t ") for line in f]
-                audioIns = [ins for ins in audioIns if ins in INSTRUMENTS]
+                audioIns = list(set([ins for ins in audioIns if ins in INSTRUMENTS]))
                 musicData["label"] = audioIns
                 meta_data.append(musicData)
 
@@ -140,6 +140,9 @@ def main():
             "meta_data": [meta_data[idx] for idx in test_index],
         }
         session = "Session{}".format(fold_idx + 1)
+        if os.path.exists(f"{metadata_root}/{session}"):
+            print(f"remove {metadata_root}/{session}...")
+            os.system(f"rm -rf {metadata_root}/{session}")
         os.mkdir(f"{metadata_root}/{session}")
         TrainingPath = os.path.join(metadata_root, session, "Training.json")
         TestingPath = os.path.join(metadata_root, session, "Testing.json")
