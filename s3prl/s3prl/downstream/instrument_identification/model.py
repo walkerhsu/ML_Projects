@@ -3,6 +3,7 @@ import math
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pad_sequence
+from ..model import *
 
 
 class SelfAttentionPooling(nn.Module):
@@ -199,3 +200,19 @@ class DeepModel(nn.Module):
         attention_mask = attention_mask.to(features.device)
         predicted = self.model(features, attention_mask)
         return predicted, None
+
+
+class LinearModel(nn.Module):
+    def __init__(self, input_dim, output_dim, pooling, **kwargs):
+        super(LinearModel, self).__init__()
+        self.pooling = eval(pooling)(input_dim=input_dim, activation="Sigmoid")
+        self.classification_model = nn.Linear(input_dim, output_dim)
+        self.activation = nn.Sigmoid()
+        self.predict_label_model = nn.Linear(output_dim, 1)
+
+    def forward(self, features, features_len):
+        pooled_features, _ = self.pooling(features, features_len)
+        predicted = self.classification_model(pooled_features)
+        activated_predicted = self.activation(predicted)
+        predicted_labels = self.predict_label_model(activated_predicted)
+        return activated_predicted, predicted_labels

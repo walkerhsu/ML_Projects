@@ -1,6 +1,7 @@
 import os
 import math
 from pathlib import Path
+import numpy
 import pandas as pd
 import torch
 import random
@@ -91,6 +92,7 @@ class DownstreamExpert(nn.Module):
 
         self.connector = nn.Linear(upstream_dim, self.modelrc["input_dim"])
         model_cls = eval(self.modelrc["select"])
+        print(f"[Expert] - Model: {model_cls}")
         model_conf = self.modelrc.get(self.modelrc["select"], {})
         self.model = model_cls(
             input_dim=self.modelrc["input_dim"],
@@ -98,7 +100,8 @@ class DownstreamExpert(nn.Module):
             **model_conf,
         )
 
-        self.objective = nn.BCEWithLogitsLoss()
+        self.objective = nn.BCELoss()
+        self.num_criterion = nn.MSELoss()
         self.register_buffer("best_score", torch.zeros(1))
         self.expdir = expdir
 
@@ -201,27 +204,35 @@ class DownstreamExpert(nn.Module):
 
         features = pad_sequence(features, batch_first=True)
         features = self.connector(features)
-        predicted, _ = self.model(features, features_len)
+        predicted, predicted_labels = self.model(features, features_len)
         label_truth = []
+        label_num = []
         for label in labels:
             label_truth.append([0.0 for _ in range(self.test_dataset.instruments_num)])
+            label_num.append([len(label)])
             for l in label:
                 label_truth[-1][l] = 1.0
 
         label_truth = torch.Tensor(label_truth).to(features.device)
-        loss = self.objective(predicted, label_truth)
+        label_num = torch.Tensor(label_num).to(features.device)
+        loss = self.objective(predicted, label_truth) + self.num_criterion(
+            predicted_labels, label_num
+        )
+
         predicted_classid = []
         accs = []
         for idx, predicted_one in enumerate(predicted.cpu().tolist()):
-            predicted_classid.append([])
             accs.append(0)
-            # if more than one that is larger than 0.5, select them
-            predicted_classid[-1] = [
-                i for i, x in enumerate(predicted_one) if x >= 0.75
-            ]
-            # if none : select the largest one
-            if len(predicted_classid[-1]) == 0:
-                predicted_classid[-1] = [predicted_one.index(max(predicted_one))]
+            # select the largest one(s) according to predicted_labels_num
+            predicted_labels_num = (
+                int(round(predicted_labels[idx].item()))
+                % self.test_dataset.instruments_num
+            )
+            if predicted_labels_num == 0:
+                predicted_labels_num = 1
+            np_predicted = numpy.array(predicted_one)
+            np_predicted = np_predicted.argsort()[-predicted_labels_num:]
+            predicted_classid.append(sorted(np_predicted.tolist()))
 
             records["predict"].append(predicted_classid[-1])
             records["truth"].append(labels[idx])

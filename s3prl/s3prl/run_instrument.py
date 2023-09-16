@@ -30,16 +30,16 @@ if __name__ == "__main__":
 
     # train
     if train:
-        os.system(
-            "python run_downstream.py -m train -n hubert--instrument_identification--BCE \
-                -u hubert -d instrument_identification \
-                -e result/downstream/hubert--instrument_identification--BCE/dev-best.ckpt \
-                -cd"
-        )
         # os.system(
         #     "python run_downstream.py -m train -n hubert--instrument_identification--BCE \
         #         -u hubert -d instrument_identification \
+        #         -e result/downstream/hubert--instrument_identification--BCE/dev-best.ckpt \
         #         -cd"
         # )
+        os.system(
+            "python run_downstream.py -m train -n hubert--instrument_identification \
+                -u hubert -d instrument_identification \
+                -cd"
+        )
 
     os.system("echo 'Done!' ")
