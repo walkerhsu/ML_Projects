@@ -27,19 +27,28 @@ if __name__ == "__main__":
     os.chdir("fairseq")
     os.system("pwd")
     # os.system("pip install --upgrade pip")
-    os.system("python -m pip install . ")
-    os.system("pip install --editable ./")
-    os.system("python setup.py build_ext --inplace")
-    os.system("echo 'fairseq done!!!' ")
+    # os.system("python -m pip install . ")
+    # os.system("pip install --editable ./")
+    # os.system("python setup.py build_ext --inplace")
+    # os.system("echo 'fairseq done!!!' ")
     
     # Install KenLM
     os.chdir("../s2p")
     # os.system("git clone https://github.com/kpu/kenlm.git")
-    os.chdir("kenlm/build")
-    os.system("cmake .. && make -j 4")
+    os.chdir("kenlm")
+    # os.mkdir("build")
+    os.chdir("build")
+    os.system("pwd")
+    os.system("apt remove cmake -y")
+    os.system("pip install cmake --upgrade")
+    os.system("cmake --version")
+    os.system("cmake ..")
+    os.system("echo 'finish cmake' ")
+    os.system("make -j 4")
+    os.system("echo 'finish bulid!!!' ")
     
     # Install some dependancies
-    os.system("pip install kenlm && pip install editdistance")
+    # os.system("pip install kenlm && pip install editdistance")
     
     # Export some paths
     os.system(f"export FAIRSEQ_ROOT={path_to_fairseq}")
@@ -47,13 +56,18 @@ if __name__ == "__main__":
     # os.system(". ~/.bashrc")
     
     # Install flashlight python bindings
-    os.system("pwd")
     # os.chdir("s2p")
     # os.system("git clone --branch v0.3.2 https://github.com/flashlight/flashlight")
-    os.chdir("flashlight/bindings/python")
-    os.system("pip install -e .")
+    os.chdir("../../flashlight/bindings/python")
+    os.system("pwd")
+    os.system("echo 'start install -e .' ")
+    os.system("pip3 install -e .")
 
     os.system("echo 'finished installation!' ")
+    
+# cd ML_projects/wav2vec-s2p/s2p && python w2vu_script.py
+    
+    
     
     
     
