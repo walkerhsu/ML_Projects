@@ -32,10 +32,6 @@ def main():
 
     print("Reading features")
     x = np.load(args.data, mmap_mode="r")
-    print(x.shape)
-    # idx = np.random.choice(x.shape[0], size=1000000, replace=False)
-    # print(idx.shape)
-    x = x[0:1000000]
 
     print("Computing PCA")
     pca = faiss.PCAMatrix(x.shape[-1], args.dim, args.eigen_power)

@@ -27,27 +27,31 @@ if __name__ == "__main__":
     os.chdir("fairseq")
     os.system("pwd")
     # os.system("pip install --upgrade pip")
-    # os.system("pip install --editable ./")
+    os.system("python -m pip install . ")
+    os.system("pip install --editable ./")
     os.system("python setup.py build_ext --inplace")
+    os.system("echo 'fairseq done!!!' ")
     
     # Install KenLM
     os.chdir("../s2p")
     # os.system("git clone https://github.com/kpu/kenlm.git")
-    os.system("cd kenlm && mkdir -p build && cd build && cmake .. && make -j 4")
+    os.chdir("kenlm/build")
+    os.system("cmake .. && make -j 4")
     
     # Install some dependancies
-    # os.system("pip install kenlm && pip install editdistance")
+    os.system("pip install kenlm && pip install editdistance")
     
     # Export some paths
     os.system(f"export FAIRSEQ_ROOT={path_to_fairseq}")
     os.system(f"export KENLM_ROOT={path_to_kenlm}")
-    os.system(". ~/.bashrc")
+    # os.system(". ~/.bashrc")
     
     # Install flashlight python bindings
     os.system("pwd")
     # os.chdir("s2p")
-    os.system("git clone --branch v0.3.2 https://github.com/flashlight/flashlight")
-    os.system("cd flashlight/bindings/python && pip install -e .")
+    # os.system("git clone --branch v0.3.2 https://github.com/flashlight/flashlight")
+    os.chdir("flashlight/bindings/python")
+    os.system("pip install -e .")
 
     os.system("echo 'finished installation!' ")
     
